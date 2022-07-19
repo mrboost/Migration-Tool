@@ -33,6 +33,8 @@ begin {
     $DefaultIncludeMyMusic = $true
     $DefaultIncludeMyPictures = $true
     $DefaultIncludeMyVideo = $true
+    $DefaultIncludeNewDesktop = $false
+    $DefaultIncludeNewLaptop = $false
 
     # Set a value for the wscript comobject
     $WScriptShell = New-Object -ComObject wscript.shell
@@ -53,8 +55,19 @@ begin {
         $LogTextBox.ScrollToCaret()
     }
 
+    function remoteCdrive {
+		$remoteMachine = $OldComputerNameTextBox_OldPage.Text
+		Update-Log "$remoteMachine - Open C$ Drive"
+		$PathToCDrive = "\\$remoteMachine\c$"
+		Explorer.exe $PathToCDrive
+	}
 
-
+    function remotenewCdrive {
+		$destination = $NewComputerNameTextBox_OldPage.Text
+		Update-Log "$destination - Open C$ Drive"
+		$PathToCDrive = "\\$destination\c$"
+		Explorer.exe $PathToCDrive
+	}
     function Save-UserState {
         param(
             [switch] $Debug
@@ -81,9 +94,13 @@ begin {
 		$userprofile = "\\" + "$remoteMachine" + "\c$\Users\" + "$remoteUser"
 		$appData = "\\" + "$remoteMachine" + "\c$\Users\" + "$remoteUser" + "\AppData\Local"
 		
-		Update-Log -Message "Backing up data from local machine for $username"
-		
-		foreach ($f in $folder)
+        $remoteComputer = $remoteMachine
+            IF  ((!$destination -eq "") -and (!$remoteMachine -eq "") -and (Test-Connection -BufferSize 32 -Count 1 -ComputerName $remoteMachine -Quiet) -and (Test-Connection -BufferSize 32 -Count 1 -ComputerName $destination -Quiet)-and (Test-Path -Path $userprofile)) {
+                Update-Log -Message ""
+                Update-Log -Message "The remote machine is Online" -Color 'Green'
+                Update-Log -Message ""
+                Update-Log -Message "Backing up data from local machine for $username"
+                foreach ($f in $folder)
 		{
 			if ($f.Checked -eq $true)
 			{
@@ -92,15 +109,18 @@ begin {
 				$currentRemoteFolder = "\\" + "$destination" + "\" + "C$" + "\LocalBackup\" + $username + "\" + $f.Text
 				$currentFolderSize = (Get-ChildItem -ErrorAction silentlyContinue $currentLocalFolder -Recurse -Force | Measure-Object -ErrorAction silentlyContinue -Property Length -Sum).Sum / 1MB
 				$currentFolderSizeRounded = [System.Math]::Round($currentFolderSize)
-                Update-Log -Message $currentLocalFolder
-                #Update-Log -Message ( Get-ChildItem $userprofile + "\" + $f.Text | Measure-Object ).Count;
-
-				Update-Log -Message $f.Text "($currentFolderSizeRounded MB)"
-				Copy-Item -ErrorAction silentlyContinue -recurse $currentLocalFolder $currentRemoteFolder
+                $currentFolder = $f.Text
+                Update-Log -Message "  $currentFolder ... ($currentFolderSizeRounded MB)"
+                robocopy "$currentLocalFolder" "$currentRemoteFolder" /S /E /R:1
+				#Copy-Item -ErrorAction silentlyContinue -recurse $currentLocalFolder $currentRemoteFolder
 			}
 			
 		}
 		Update-Log -Message "Backup complete!"
+            } Else {
+                Update-Log -Message ""
+                Update-Log -Message "The remote/destination machine is Down or Username is incorrect" -Color 'Red'
+            }
 	}
 	
 	function Set-Logo
@@ -276,7 +296,7 @@ process {
     # My Documents check box CSIDL_MYDOCUMENTS and CSIDL_PERSONAL
     $IncludeMyDocumentsCheckBox = New-Object System.Windows.Forms.CheckBox
     $IncludeMyDocumentsCheckBox.Checked = $DefaultIncludeMyDocuments
-    $IncludeMyDocumentsCheckBox.Text = 'My Documents'
+    $IncludeMyDocumentsCheckBox.Text = 'Documents'
     $IncludeMyDocumentsCheckBox.Location = New-Object System.Drawing.Size(10, 95)
 	$IncludeMyDocumentsCheckBox.Size = New-Object System.Drawing.Size(100, 20)
     $InclusionsGroupBox.Controls.Add($IncludeMyDocumentsCheckBox)
@@ -299,7 +319,6 @@ process {
 	$IncludeDownloadsCheckBox.Size = New-Object System.Drawing.Size(100, 20)
     $InclusionsGroupBox.Controls.Add($IncludeDownloadsCheckBox)
 
-	
 	# Favorites check box CSIDL_FAVORITES
     $IncludeFavoritesCheckBox = New-Object System.Windows.Forms.CheckBox
     $IncludeFavoritesCheckBox.Checked = $DefaultIncludeFavorites
@@ -312,7 +331,7 @@ process {
 	# My Music check box CSIDL_MYMUSIC
     $IncludeMyMusicCheckBox = New-Object System.Windows.Forms.CheckBox
     $IncludeMyMusicCheckBox.Checked = $DefaultIncludeMyMusic
-    $IncludeMyMusicCheckBox.Text = 'My Music'
+    $IncludeMyMusicCheckBox.Text = 'Music'
     $IncludeMyMusicCheckBox.Location = New-Object System.Drawing.Size(10, 55)
 	$IncludeMyMusicCheckBox.Size = New-Object System.Drawing.Size(100, 20)
     $InclusionsGroupBox.Controls.Add($IncludeMyMusicCheckBox)
@@ -321,7 +340,7 @@ process {
 	# My Pictures check box CSIDL_MYPICTURES
     $IncludeMyPicturesCheckBox = New-Object System.Windows.Forms.CheckBox
     $IncludeMyPicturesCheckBox.Checked = $DefaultIncludeMyPictures
-    $IncludeMyPicturesCheckBox.Text = 'My Pictures'
+    $IncludeMyPicturesCheckBox.Text = 'Pictures'
     $IncludeMyPicturesCheckBox.Location = New-Object System.Drawing.Size(10, 75)
 	$IncludeMyPicturesCheckBox.Size = New-Object System.Drawing.Size(100, 20)
     $InclusionsGroupBox.Controls.Add($IncludeMyPicturesCheckBox)
@@ -359,10 +378,27 @@ process {
 	$pictureBox.Image = $img
 	$ExtraDirectoriesGroupBox.controls.add($pictureBox)
 	
+    #Old Machine C:\
+    $remoteCdrive_OldPage = New-Object System.Windows.Forms.Button
+    $remoteCdrive_OldPage.Location = New-Object System.Drawing.Size(290, 100)
+    $remoteCdrive_OldPage.Size = New-Object System.Drawing.Size(120, 40)
+    $remoteCdrive_OldPage.Font = New-Object System.Drawing.Font('Calibri', 12, [System.Drawing.FontStyle]::Bold)
+    $remoteCdrive_OldPage.Text = 'Old PC C:'
+    $remoteCdrive_OldPage.Add_Click({ remoteCdrive })
+    $OldComputerTabPage.Controls.Add($remoteCdrive_OldPage)
+
+    #New Machine C:\
+    $remotenewCdrive_OldPage = New-Object System.Windows.Forms.Button
+    $remotenewCdrive_OldPage.Location = New-Object System.Drawing.Size(290, 150)
+    $remotenewCdrive_OldPage.Size = New-Object System.Drawing.Size(120, 40)
+    $remotenewCdrive_OldPage.Font = New-Object System.Drawing.Font('Calibri', 12, [System.Drawing.FontStyle]::Bold)
+    $remotenewCdrive_OldPage.Text = 'New PC C:'
+    $remotenewCdrive_OldPage.Add_Click({ remotenewCdrive })
+    $OldComputerTabPage.Controls.Add($remotenewCdrive_OldPage)
 
     # Migrate button
     $MigrateButton_OldPage = New-Object System.Windows.Forms.Button
-    $MigrateButton_OldPage.Location = New-Object System.Drawing.Size(300, 250)
+    $MigrateButton_OldPage.Location = New-Object System.Drawing.Size(300, 300)
     $MigrateButton_OldPage.Size = New-Object System.Drawing.Size(100, 40)
     $MigrateButton_OldPage.Font = New-Object System.Drawing.Font('Calibri', 16, [System.Drawing.FontStyle]::Bold)
     $MigrateButton_OldPage.Text = 'Migrate'
