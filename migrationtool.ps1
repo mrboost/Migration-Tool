@@ -349,8 +349,8 @@ process {
 	# My Video check box CSIDL_MYVIDEO
     $IncludeMyVideoCheckBox = New-Object System.Windows.Forms.CheckBox
     $IncludeMyVideoCheckBox.Checked = $DefaultIncludeMyVideo
-    $IncludeMyVideoCheckBox.Text = 'My Video'
-    $IncludeMyVideoCheckBox.Location = New-Object System.Drawing.Size(10, 95)
+    $IncludeMyVideoCheckBox.Text = 'Videos'
+    $IncludeMyVideoCheckBox.Location = New-Object System.Drawing.Size(110, 35)
 	$IncludeMyVideoCheckBox.Size = New-Object System.Drawing.Size(100, 20)
     $InclusionsGroupBox.Controls.Add($IncludeMyVideoCheckBox)
 
