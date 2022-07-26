@@ -11,7 +11,7 @@ begin {
     [Console.Window]::ShowWindow($consolePtr, 0)
 
     # Define the script version
-    $ScriptVersion = "1.0.4"
+    $ScriptVersion = "1.1.0"
 
     # Set ScripRoot variable to the path which the script is executed from
     $ScriptRoot = if ($PSVersionTable.PSVersion.Major -lt 3) {
@@ -53,6 +53,44 @@ begin {
         if (-not $NoNewLine) { $LogTextBox.AppendText("`n") }
         $LogTextBox.Update()
         $LogTextBox.ScrollToCaret()
+    }
+
+    function installPlanet {
+        # Show input box popup and return the value entered by the user.
+        function Read-InputBoxDialog([string]$Message, [string]$WindowTitle, [string]$DefaultText)
+        {
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            return [Microsoft.VisualBasic.Interaction]::InputBox($Message, $WindowTitle, $DefaultText)
+        }
+        $textEntered = Read-InputBoxDialog -Message "Copy the below address and press 'OK'`n`nInstaller will launch after pressing 'OK'" -WindowTitle "Plant Application Install" -DefaultText "CHPRDSQL1701\INPRDPROF"
+        Push-Location '\\chprdfs01\dist\swd\CLT\Plant Application 7\Proficy Admin and client installer'
+        Start-Process -FilePath "PlantApplicationsClientSetup.exe" -wait
+        Pop-Location
+        Update-Log -message "Plant Applications Installed is complete!"
+
+    }
+
+    function installPi {
+        Push-Location \\SGPRDFS01\Groups\PI-Install\Install_CH
+        Start-Process -FilePath "Install_CH-SemiSilent-PB.bat" -wait
+        (Get-WmiObject win32_product | Where-Object Name -Match "PI AF Client*").Uninstall()
+        Start-Process -FilePath "Install_CH-SemiSilent-DL.bat" -wait
+        Pop-Location
+        Update-Log -message "PI Installed is complete!"
+    }
+
+    function installLenovo {
+        Push-Location \\sgprdfs01\installs$\Lenovo
+        Start-Process -FilePath "system_update_5.07.0136.exe" -wait
+        Pop-Location
+        Update-Log -message "Lenovo System Update install is complete!"
+    }
+
+    function installLenovoDrivers {
+        Push-Location '\\sgprdfs01\installs$\Lenovo\USB-C Dock Gen2 Drivers'
+        Start-Process -FilePath "thinkpad_usb-c_dock_gen2_drivers_v1.0.2.06121.exe" -wait
+        Pop-Location
+        Update-Log -message "Dock drivers install is complete!"
     }
 
     function remoteCdrive {
@@ -399,11 +437,54 @@ process {
     # Migrate button
     $MigrateButton_OldPage = New-Object System.Windows.Forms.Button
     $MigrateButton_OldPage.Location = New-Object System.Drawing.Size(300, 300)
-    $MigrateButton_OldPage.Size = New-Object System.Drawing.Size(100, 40)
-    $MigrateButton_OldPage.Font = New-Object System.Drawing.Font('Calibri', 16, [System.Drawing.FontStyle]::Bold)
+    $MigrateButton_OldPage.Size = New-Object System.Drawing.Size(150, 40)
+    $MigrateButton_OldPage.Font = New-Object System.Drawing.Font('Calibri', 14, [System.Drawing.FontStyle]::Bold)
     $MigrateButton_OldPage.Text = 'Migrate'
     $MigrateButton_OldPage.Add_Click({ Save-UserState })
     $OldComputerTabPage.Controls.Add($MigrateButton_OldPage)
+
+    # Create email settings tab
+    $InstallAppsTabPage = New-Object System.Windows.Forms.TabPage
+    $InstallAppsTabPage.DataBindings.DefaultDataSourceUpdateMode = 0
+    $InstallAppsTabPage.UseVisualStyleBackColor = $true
+    $InstallAppsTabPage.Text = 'Install Apps'
+    $TabControl.Controls.Add($InstallAppsTabPage)
+
+    # Install Plant Apps
+    $installPlanetButton = New-Object System.Windows.Forms.Button
+    $installPlanetButton.Location = New-Object System.Drawing.Size(10, 10)
+    $installPlanetButton.Size = New-Object System.Drawing.Size(150, 60)
+    $installPlanetButton.Font = New-Object System.Drawing.Font('Calibri', 10, [System.Drawing.FontStyle]::Bold)
+    $installPlanetButton.Text = 'Install Plant Applications'
+    $installPlanetButton.Add_Click({ installPlanet })
+    $InstallAppsTabPage.Controls.Add($installPlanetButton)  
+    
+    # Install PI
+    $installPiButton = New-Object System.Windows.Forms.Button
+    $installPiButton.Location = New-Object System.Drawing.Size(10, 80)
+    $installPiButton.Size = New-Object System.Drawing.Size(150, 30)
+    $installPiButton.Font = New-Object System.Drawing.Font('Calibri', 10, [System.Drawing.FontStyle]::Bold)
+    $installPiButton.Text = 'Install Pi'
+    $installPiButton.Add_Click({ installPi })
+    $InstallAppsTabPage.Controls.Add($installPiButton)     
+
+    # Install Lenovo System Update
+    $installLenovoButton = New-Object System.Windows.Forms.Button
+    $installLenovoButton.Location = New-Object System.Drawing.Size(10, 120)
+    $installLenovoButton.Size = New-Object System.Drawing.Size(150, 50)
+    $installLenovoButton.Font = New-Object System.Drawing.Font('Calibri', 10, [System.Drawing.FontStyle]::Bold)
+    $installLenovoButton.Text = 'Install Lenovo System Update'
+    $installLenovoButton.Add_Click({ installLenovo })
+    $InstallAppsTabPage.Controls.Add($installLenovoButton)
+
+    # Install Lenovo Dock Drivers
+    $installLenovoDriversButton = New-Object System.Windows.Forms.Button
+    $installLenovoDriversButton.Location = New-Object System.Drawing.Size(10, 180)
+    $installLenovoDriversButton.Size = New-Object System.Drawing.Size(150, 50)
+    $installLenovoDriversButton.Font = New-Object System.Drawing.Font('Calibri', 10, [System.Drawing.FontStyle]::Bold)
+    $installLenovoDriversButton.Text = 'Install Lenovo Dock Drivers'
+    $installLenovoDriversButton.Add_Click({ installLenovoDrivers })
+    $InstallAppsTabPage.Controls.Add($installLenovoDriversButton)
 
     # Create new computer tab
     $NewComputerTabPage = New-Object System.Windows.Forms.TabPage
